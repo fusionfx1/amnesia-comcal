@@ -25,16 +25,17 @@ const HEADERS = [
 let SPREADSHEET_ID = null;
 
 /**
- * Handle POST requests (saving data) - FIXED VERSION
+ * Handle POST requests (saving data) - FIXED VERSION WITH CORS
  */
 function doPost(e) {
   try {
     console.log('📥 Received POST request');
+    console.log('📋 Headers:', JSON.stringify(e));
     
     // Check if we have post data
     if (!e || !e.postData || !e.postData.contents) {
       console.error('❌ No post data received');
-      return createResponse(false, 'No data received in POST request');
+      return createCorsResponse(false, 'No data received in POST request');
     }
     
     console.log('📄 Raw POST data:', e.postData.contents);
@@ -48,17 +49,17 @@ function doPost(e) {
     }
     
     console.error('❌ Invalid action:', data.action);
-    return createResponse(false, 'Invalid action specified: ' + (data.action || 'none'));
+    return createCorsResponse(false, 'Invalid action specified: ' + (data.action || 'none'));
     
   } catch (error) {
     console.error('❌ Error in doPost:', error);
     console.error('❌ Error stack:', error.stack);
-    return createResponse(false, 'Server error in doPost: ' + error.message);
+    return createCorsResponse(false, 'Server error in doPost: ' + error.message);
   }
 }
 
 /**
- * Handle GET requests (loading data) - ENHANCED VERSION
+ * Handle GET requests (loading data) - ENHANCED VERSION WITH CORS
  */
 function doGet(e) {
   try {
@@ -80,15 +81,16 @@ function doGet(e) {
     
     // Default response for basic connectivity test
     console.log('✅ Basic connectivity test');
-    return createResponse(true, 'AMNESIA Commission API is working! 🎉', {
+    return createCorsResponse(true, 'AMNESIA Commission API is working! 🎉', {
       timestamp: new Date().toISOString(),
-      version: '2.0',
-      spreadsheetName: SPREADSHEET_NAME
+      version: '2.1',
+      spreadsheetName: SPREADSHEET_NAME,
+      deploymentUrl: ScriptApp.getService().getUrl()
     });
     
   } catch (error) {
     console.error('❌ Error in doGet:', error);
-    return createResponse(false, 'Server error in doGet: ' + error.message);
+    return createCorsResponse(false, 'Server error in doGet: ' + error.message);
   }
 }
 
@@ -197,7 +199,7 @@ function getOrCreateSheet() {
 }
 
 /**
- * Save commission data to Google Sheets (ENHANCED VERSION)
+ * Save commission data to Google Sheets (ENHANCED VERSION WITH CORS)
  */
 function saveCommissionData(entries) {
   try {
@@ -207,17 +209,17 @@ function saveCommissionData(entries) {
     // Validate input
     if (!entries) {
       console.error('❌ No entries provided');
-      return createResponse(false, 'No entries provided');
+      return createCorsResponse(false, 'No entries provided');
     }
     
     if (!Array.isArray(entries)) {
       console.error('❌ Entries is not an array:', typeof entries);
-      return createResponse(false, 'Entries must be an array, received: ' + typeof entries);
+      return createCorsResponse(false, 'Entries must be an array, received: ' + typeof entries);
     }
     
     if (entries.length === 0) {
       console.error('❌ Empty entries array');
-      return createResponse(false, 'Empty entries array provided');
+      return createCorsResponse(false, 'Empty entries array provided');
     }
     
     console.log('📊 Processing', entries.length, 'entries...');
@@ -244,7 +246,7 @@ function saveCommissionData(entries) {
     
     if (validEntries.length === 0) {
       console.error('❌ No valid entries found');
-      return createResponse(false, 'No valid entries found. Check employee names and months.');
+      return createCorsResponse(false, 'No valid entries found. Check employee names and months.');
     }
     
     // Prepare rows for insertion
@@ -285,22 +287,23 @@ function saveCommissionData(entries) {
     const successMessage = `Successfully saved ${validEntries.length} entries to ${SPREADSHEET_NAME}`;
     console.log('🎉', successMessage);
     
-    return createResponse(true, successMessage, {
+    return createCorsResponse(true, successMessage, {
       savedEntries: validEntries.length,
       totalEntries: entries.length,
       spreadsheetId: SPREADSHEET_ID,
-      sheetName: SHEET_NAME
+      sheetName: SHEET_NAME,
+      timestamp: timestamp.toISOString()
     });
     
   } catch (error) {
     console.error('❌ Error saving data:', error);
     console.error('❌ Error stack:', error.stack);
-    return createResponse(false, 'Failed to save data: ' + error.message);
+    return createCorsResponse(false, 'Failed to save data: ' + error.message);
   }
 }
 
 /**
- * Load commission data by month (ENHANCED VERSION)
+ * Load commission data by month (ENHANCED VERSION WITH CORS)
  */
 function loadCommissionData(month) {
   try {
@@ -313,7 +316,7 @@ function loadCommissionData(month) {
     
     if (data.length <= 1) {
       console.log('📊 No data found (only headers or empty sheet)');
-      return createJsonResponse([]);
+      return createCorsJsonResponse([]);
     }
     
     // Filter data by month
@@ -341,16 +344,16 @@ function loadCommissionData(month) {
     }));
     
     console.log('✅ Returning', result.length, 'processed entries');
-    return createJsonResponse(result);
+    return createCorsJsonResponse(result);
     
   } catch (error) {
     console.error('❌ Error loading data:', error);
-    return createResponse(false, 'Failed to load data: ' + error.message);
+    return createCorsResponse(false, 'Failed to load data: ' + error.message);
   }
 }
 
 /**
- * Load all available months (ENHANCED VERSION)
+ * Load all available months (ENHANCED VERSION WITH CORS)
  */
 function loadAllMonths() {
   try {
@@ -363,7 +366,7 @@ function loadAllMonths() {
     
     if (data.length <= 1) {
       console.log('📊 No data found');
-      return createJsonResponse([]);
+      return createCorsJsonResponse([]);
     }
     
     // Extract unique months
@@ -373,11 +376,11 @@ function loadAllMonths() {
     )];
     
     console.log('📊 Found months:', months);
-    return createJsonResponse(months);
+    return createCorsJsonResponse(months);
     
   } catch (error) {
     console.error('❌ Error loading months:', error);
-    return createResponse(false, 'Failed to load months: ' + error.message);
+    return createCorsResponse(false, 'Failed to load months: ' + error.message);
   }
 }
 
@@ -408,9 +411,9 @@ function formatCurrencyColumns(sheet, startRow, numRows) {
 }
 
 /**
- * Create a standard JSON response (ENHANCED VERSION)
+ * Create a CORS-enabled JSON response (FIXED VERSION)
  */
-function createResponse(success, message, data = null) {
+function createCorsResponse(success, message, data = null) {
   const response = {
     success: success,
     message: message,
@@ -421,22 +424,50 @@ function createResponse(success, message, data = null) {
     response.data = data;
   }
   
-  console.log('📤 Sending response:', JSON.stringify(response));
+  console.log('📤 Sending CORS response:', JSON.stringify(response));
   
   return ContentService
     .createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '3600'
+    });
 }
 
 /**
- * Create a JSON response for data
+ * Create a CORS-enabled JSON response for data
  */
-function createJsonResponse(data) {
-  console.log('📤 Sending JSON data:', JSON.stringify(data));
+function createCorsJsonResponse(data) {
+  console.log('📤 Sending CORS JSON data:', JSON.stringify(data));
   
   return ContentService
     .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '3600'
+    });
+}
+
+/**
+ * Handle OPTIONS requests for CORS preflight
+ */
+function doOptions(e) {
+  console.log('📋 Handling OPTIONS request for CORS');
+  
+  return ContentService
+    .createTextOutput('')
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '3600'
+    });
 }
 
 /**
@@ -591,6 +622,7 @@ function onOpen() {
     .addItem('📊 ทดสอบโหลดเดือน (Test Load Months)', 'testLoadAllMonths')
     .addItem('ℹ️ ข้อมูล Spreadsheet (Info)', 'getSpreadsheetInfo')
     .addItem('🗑️ ลบข้อมูลทดสอบ (Clear Test Data)', 'clearTestData')
+    .addItem('🔧 ตรวจสอบ Deployment', 'checkDeploymentSettings')
     .addToUi();
 }
 
@@ -640,7 +672,7 @@ function getEmployeeSummary() {
     const data = sheet.getDataRange().getValues();
     
     if (data.length <= 1) {
-      return createJsonResponse([]);
+      return createCorsJsonResponse([]);
     }
     
     const employees = ['Ting', 'Bank', 'Tann'];
@@ -657,11 +689,11 @@ function getEmployeeSummary() {
       };
     });
     
-    return createJsonResponse(summary);
+    return createCorsJsonResponse(summary);
     
   } catch (error) {
     console.error('❌ Error getting employee summary:', error);
-    return createResponse(false, 'Failed to get employee summary: ' + error.message);
+    return createCorsResponse(false, 'Failed to get employee summary: ' + error.message);
   }
 }
 
@@ -714,7 +746,8 @@ function checkDeploymentSettings() {
       scriptId: ScriptApp.getScriptId(),
       triggers: ScriptApp.getProjectTriggers().length,
       spreadsheetInfo: getSpreadsheetInfo(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      deploymentUrl: ScriptApp.getService().getUrl()
     };
     
     console.log('🔍 Deployment info:', JSON.stringify(info, null, 2));
@@ -723,5 +756,19 @@ function checkDeploymentSettings() {
   } catch (error) {
     console.error('❌ Error checking deployment:', error);
     return { error: error.message };
+  }
+}
+
+/**
+ * Get current deployment URL
+ */
+function getCurrentDeploymentUrl() {
+  try {
+    const url = ScriptApp.getService().getUrl();
+    console.log('🔗 Current deployment URL:', url);
+    return url;
+  } catch (error) {
+    console.error('❌ Error getting deployment URL:', error);
+    return null;
   }
 }
