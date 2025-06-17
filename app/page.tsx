@@ -84,10 +84,19 @@ export default function AmnesiaCommissionCalculator() {
     
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // Increased timeout
 
+      // Add no-cors mode and additional headers for better compatibility
       const response = await fetch(googleSheetsUrl, {
-        signal: controller.signal
+        method: 'GET',
+        signal: controller.signal,
+        mode: 'cors', // Explicitly set CORS mode
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Content-Type': 'application/json',
+        },
+        // Add credentials if needed
+        credentials: 'omit'
       })
       
       clearTimeout(timeoutId)
@@ -106,15 +115,23 @@ export default function AmnesiaCommissionCalculator() {
         } else {
           setApiStatus("error")
           addTestResult("⚠️ ได้รับ response แต่ไม่ใช่ข้อความที่คาดหวัง")
+          addTestResult(`Response: ${data.substring(0, 200)}...`)
         }
       } else {
         setApiStatus("error")
-        addTestResult(`❌ HTTP Error: ${response.status}`)
+        addTestResult(`❌ HTTP Error: ${response.status} - ${response.statusText}`)
       }
     } catch (error: any) {
       setApiStatus("error")
       if (error.name === "AbortError") {
-        addTestResult("❌ Request timeout")
+        addTestResult("❌ Request timeout (15 seconds)")
+      } else if (error.message.includes("Failed to fetch")) {
+        addTestResult("❌ Network Error: Cannot reach the API")
+        addTestResult("🔧 Possible solutions:")
+        addTestResult("   1. Check if the Google Apps Script URL is correct")
+        addTestResult("   2. Ensure the Web App is deployed with 'Anyone' access")
+        addTestResult("   3. Try redeploying the Google Apps Script")
+        addTestResult("   4. Check if the script is published as a web app")
       } else {
         addTestResult(`❌ Network Error: ${error.message}`)
       }
@@ -260,7 +277,24 @@ export default function AmnesiaCommissionCalculator() {
     if (!googleSheetsUrl || apiStatus !== "connected") return
 
     try {
-      const response = await fetch(`${googleSheetsUrl}?action=load`)
+      addTestResult("📊 กำลังโหลดรายการเดือน...")
+      
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      const response = await fetch(`${googleSheetsUrl}?action=load`, {
+        method: 'GET',
+        signal: controller.signal,
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit'
+      })
+      
+      clearTimeout(timeoutId)
+
       if (response.ok) {
         const data = await response.json()
         if (Array.isArray(data)) {
@@ -268,10 +302,18 @@ export default function AmnesiaCommissionCalculator() {
           addTestResult(`📊 พบ ${data.length} เดือน: ${data.join(", ")}`)
         } else {
           setAvailableMonths([])
+          addTestResult("📊 ไม่พบข้อมูลเดือน")
         }
+      } else {
+        addTestResult(`❌ Error loading months: ${response.status} - ${response.statusText}`)
+        setAvailableMonths([])
       }
-    } catch (error) {
-      console.error("Failed to load available months:", error)
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        addTestResult("❌ Timeout loading months")
+      } else {
+        addTestResult(`❌ Failed to load available months: ${error.message}`)
+      }
       setAvailableMonths([])
     }
   }
@@ -312,11 +354,22 @@ export default function AmnesiaCommissionCalculator() {
 
     setIsLoading(true)
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // Longer timeout for save
+
       const response = await fetch(googleSheetsUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        mode: 'cors',
+        headers: { 
+          "Content-Type": "application/json",
+          'Accept': 'application/json, text/plain, */*',
+        },
+        credentials: 'omit',
         body: JSON.stringify({ action: "save", data: allEntries }),
       })
+
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         const result = await response.json()
@@ -326,14 +379,22 @@ export default function AmnesiaCommissionCalculator() {
         })
         loadAvailableMonths()
       } else {
-        throw new Error("Failed to save data")
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save data to Google Sheets.",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        toast({
+          title: "Error",
+          description: "Request timeout. Please try again.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to save data: ${error.message}`,
+          variant: "destructive",
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -360,7 +421,21 @@ export default function AmnesiaCommissionCalculator() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`${googleSheetsUrl}?action=load&month=${selectedMonth}`)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+      const response = await fetch(`${googleSheetsUrl}?action=load&month=${selectedMonth}`, {
+        method: 'GET',
+        signal: controller.signal,
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit'
+      })
+
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         const data = await response.json()
@@ -401,11 +476,19 @@ export default function AmnesiaCommissionCalculator() {
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: `Failed to load data: ${error.message}`,
-        variant: "destructive",
-      })
+      if (error.name === "AbortError") {
+        toast({
+          title: "Error",
+          description: "Request timeout. Please try again.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to load data: ${error.message}`,
+          variant: "destructive",
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -462,6 +545,21 @@ export default function AmnesiaCommissionCalculator() {
             <Card className="border-yellow-200 bg-yellow-50">
               <CardHeader>
                 <CardTitle className="text-lg text-yellow-800">🧪 API Test Panel</CardTitle>
+                <CardDescription className="text-yellow-700">
+                  If you see connection errors, please check your Google Apps Script deployment:
+                  <br />
+                  1. Go to your Google Apps Script project
+                  <br />
+                  2. Click "Deploy" → "Manage deployments"
+                  <br />
+                  3. Edit your Web App deployment
+                  <br />
+                  4. Set "Execute as" to "Me" and "Who has access" to "Anyone"
+                  <br />
+                  5. Click "Deploy" to get a new URL
+                  <br />
+                  6. Update the URL in the field below
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
@@ -499,11 +597,17 @@ export default function AmnesiaCommissionCalculator() {
                       value={googleSheetsUrl}
                       onChange={(e) => setGoogleSheetsUrl(e.target.value)}
                       className="flex-1"
+                      placeholder="https://script.google.com/macros/s/..."
                     />
                     <Button variant="outline" size="sm" onClick={checkApiConnection}>
                       <RefreshCw className="w-4 h-4" />
                     </Button>
                   </div>
+                  {apiStatus === "error" && (
+                    <p className="text-sm text-red-600">
+                      ⚠️ Connection failed. Please check the deployment settings in Google Apps Script.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="load-month">Load Data for Month</Label>
