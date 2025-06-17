@@ -50,7 +50,7 @@ const employees = ["Ting", "Bank", "Tann"]
 
 export default function FinalCommissionCalculator() {
   const [googleSheetsUrl, setGoogleSheetsUrl] = useState<string>(
-    "https://script.google.com/macros/s/AKfycbzFwqXTQbfluM02DvhKP0JQW8LQsRy6HI8tQOC1HZYP_V3LNwweCIi1SgQ1N6e2Q6FOGg/exec",
+    "https://script.google.com/macros/s/AKfycbx1ycoCG7IHa5KPMzElhhPGWHUv8yLLX7nflMzqbywUyJfN8ZTrVqY_cHVEBcFKNaqt/exec",
   )
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>("")
@@ -435,7 +435,7 @@ export default function FinalCommissionCalculator() {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calculator className="w-6 h-6" />💰 AMNESIA Commission Calculator
-              <Badge className="bg-green-500 text-white">🎉 API Fixed!</Badge>
+              <Badge className="bg-green-500 text-white">🎉 API Updated!</Badge>
             </div>
             <div className="flex items-center gap-2">
               {getApiStatusBadge()}
