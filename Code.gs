@@ -1,6 +1,6 @@
 /**
- * Google Apps Script for AMNESIA Staff Commission 2025 (Fixed Save Issue)
- * Handles saving and loading commission data with better error handling
+ * Google Apps Script for AMNESIA Staff Commission 2025 (FINAL FIXED VERSION)
+ * This version includes comprehensive CORS handling and deployment fixes
  */
 
 // Configuration
@@ -25,12 +25,34 @@ const HEADERS = [
 let SPREADSHEET_ID = null;
 
 /**
- * Handle POST requests (saving data) - FIXED VERSION WITH CORS
+ * Handle OPTIONS requests for CORS preflight - CRITICAL FOR WEB APPS
+ */
+function doOptions(e) {
+  console.log('📋 Handling OPTIONS request for CORS preflight');
+  
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Access-Control-Max-Age': '86400'
+    });
+}
+
+/**
+ * Handle POST requests (saving data) - ENHANCED WITH BETTER CORS
  */
 function doPost(e) {
   try {
     console.log('📥 Received POST request');
-    console.log('📋 Headers:', JSON.stringify(e));
+    console.log('📋 Request details:', JSON.stringify({
+      method: 'POST',
+      hasPostData: !!(e && e.postData),
+      contentLength: e && e.postData ? e.postData.length : 0,
+      contentType: e && e.postData ? e.postData.type : 'unknown'
+    }));
     
     // Check if we have post data
     if (!e || !e.postData || !e.postData.contents) {
@@ -38,10 +60,12 @@ function doPost(e) {
       return createCorsResponse(false, 'No data received in POST request');
     }
     
-    console.log('📄 Raw POST data:', e.postData.contents);
+    console.log('📄 Raw POST data length:', e.postData.contents.length);
+    console.log('📄 Raw POST data preview:', e.postData.contents.substring(0, 200) + '...');
     
     const data = JSON.parse(e.postData.contents);
-    console.log('📊 Parsed data:', JSON.stringify(data, null, 2));
+    console.log('📊 Parsed data action:', data.action);
+    console.log('📊 Parsed data entries count:', data.data ? data.data.length : 0);
     
     if (data.action === 'save') {
       console.log('💾 Processing save action...');
@@ -59,14 +83,14 @@ function doPost(e) {
 }
 
 /**
- * Handle GET requests (loading data) - ENHANCED VERSION WITH CORS
+ * Handle GET requests (loading data) - ENHANCED WITH BETTER CORS
  */
 function doGet(e) {
   try {
     console.log('📥 Received GET request');
-    console.log('📋 Parameters:', JSON.stringify(e.parameter));
+    console.log('📋 Parameters:', JSON.stringify(e.parameter || {}));
     
-    const action = e.parameter.action;
+    const action = e.parameter ? e.parameter.action : null;
     
     if (action === 'load') {
       const month = e.parameter.month;
@@ -80,17 +104,31 @@ function doGet(e) {
     }
     
     // Default response for basic connectivity test
-    console.log('✅ Basic connectivity test');
+    console.log('✅ Basic connectivity test - returning success response');
     return createCorsResponse(true, 'AMNESIA Commission API is working! 🎉', {
       timestamp: new Date().toISOString(),
-      version: '2.1',
+      version: '3.0',
       spreadsheetName: SPREADSHEET_NAME,
-      deploymentUrl: ScriptApp.getService().getUrl()
+      deploymentUrl: getDeploymentUrl(),
+      testMessage: 'Connection successful from Google Apps Script!'
     });
     
   } catch (error) {
     console.error('❌ Error in doGet:', error);
+    console.error('❌ Error stack:', error.stack);
     return createCorsResponse(false, 'Server error in doGet: ' + error.message);
+  }
+}
+
+/**
+ * Get deployment URL safely
+ */
+function getDeploymentUrl() {
+  try {
+    return ScriptApp.getService().getUrl();
+  } catch (error) {
+    console.log('⚠️ Could not get deployment URL:', error.message);
+    return 'URL not available';
   }
 }
 
@@ -199,12 +237,12 @@ function getOrCreateSheet() {
 }
 
 /**
- * Save commission data to Google Sheets (ENHANCED VERSION WITH CORS)
+ * Save commission data to Google Sheets (ENHANCED VERSION WITH BETTER CORS)
  */
 function saveCommissionData(entries) {
   try {
     console.log('💾 Starting save process...');
-    console.log('📊 Received entries:', JSON.stringify(entries, null, 2));
+    console.log('📊 Received entries count:', entries ? entries.length : 0);
     
     // Validate input
     if (!entries) {
@@ -303,7 +341,7 @@ function saveCommissionData(entries) {
 }
 
 /**
- * Load commission data by month (ENHANCED VERSION WITH CORS)
+ * Load commission data by month (ENHANCED VERSION WITH BETTER CORS)
  */
 function loadCommissionData(month) {
   try {
@@ -353,7 +391,7 @@ function loadCommissionData(month) {
 }
 
 /**
- * Load all available months (ENHANCED VERSION WITH CORS)
+ * Load all available months (ENHANCED VERSION WITH BETTER CORS)
  */
 function loadAllMonths() {
   try {
@@ -411,13 +449,15 @@ function formatCurrencyColumns(sheet, startRow, numRows) {
 }
 
 /**
- * Create a CORS-enabled JSON response (FIXED VERSION)
+ * Create a CORS-enabled JSON response (ENHANCED VERSION)
  */
 function createCorsResponse(success, message, data = null) {
   const response = {
     success: success,
     message: message,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    server: 'Google Apps Script',
+    version: '3.0'
   };
   
   if (data !== null) {
@@ -431,9 +471,10 @@ function createCorsResponse(success, message, data = null) {
     .setMimeType(ContentService.MimeType.JSON)
     .setHeaders({
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '3600'
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Access-Control-Max-Age': '86400',
+      'Cache-Control': 'no-cache'
     });
 }
 
@@ -441,32 +482,17 @@ function createCorsResponse(success, message, data = null) {
  * Create a CORS-enabled JSON response for data
  */
 function createCorsJsonResponse(data) {
-  console.log('📤 Sending CORS JSON data:', JSON.stringify(data));
+  console.log('📤 Sending CORS JSON data length:', Array.isArray(data) ? data.length : 'not array');
   
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON)
     .setHeaders({
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '3600'
-    });
-}
-
-/**
- * Handle OPTIONS requests for CORS preflight
- */
-function doOptions(e) {
-  console.log('📋 Handling OPTIONS request for CORS');
-  
-  return ContentService
-    .createTextOutput('')
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '3600'
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Access-Control-Max-Age': '86400',
+      'Cache-Control': 'no-cache'
     });
 }
 
@@ -485,13 +511,15 @@ function setupSpreadsheet() {
     console.log('📊 Spreadsheet URL:', spreadsheet.getUrl());
     console.log('📋 Sheet Name:', SHEET_NAME);
     console.log('🔗 Spreadsheet ID:', spreadsheet.getId());
+    console.log('🌐 Deployment URL:', getDeploymentUrl());
     
     return {
       success: true,
       message: "Setup complete! Commission tracking system ready.",
       spreadsheetUrl: spreadsheet.getUrl(),
       spreadsheetId: spreadsheet.getId(),
-      sheetName: SHEET_NAME
+      sheetName: SHEET_NAME,
+      deploymentUrl: getDeploymentUrl()
     };
     
   } catch (error) {
@@ -596,6 +624,7 @@ function getSpreadsheetInfo() {
       name: spreadsheet.getName(),
       url: spreadsheet.getUrl(),
       id: spreadsheet.getId(),
+      deploymentUrl: getDeploymentUrl(),
       sheets: spreadsheet.getSheets().map(sheet => ({
         name: sheet.getName(),
         rows: sheet.getLastRow(),
@@ -624,77 +653,6 @@ function onOpen() {
     .addItem('🗑️ ลบข้อมูลทดสอบ (Clear Test Data)', 'clearTestData')
     .addItem('🔧 ตรวจสอบ Deployment', 'checkDeploymentSettings')
     .addToUi();
-}
-
-/**
- * Create dashboard sheet
- */
-function createDashboard() {
-  try {
-    const spreadsheet = getOrCreateSpreadsheet();
-    let dashboardSheet = spreadsheet.getSheetByName('Dashboard');
-    
-    if (!dashboardSheet) {
-      dashboardSheet = spreadsheet.insertSheet('Dashboard', 0);
-      
-      // Set up dashboard title
-      dashboardSheet.getRange('A1:F1').merge();
-      dashboardSheet.getRange('A1').setValue('AMNESIA STAFF COMMISSION DASHBOARD 2025');
-      dashboardSheet.getRange('A1').setFontSize(16);
-      dashboardSheet.getRange('A1').setFontWeight('bold');
-      dashboardSheet.getRange('A1').setHorizontalAlignment('center');
-      dashboardSheet.getRange('A1').setBackground('#4285f4');
-      dashboardSheet.getRange('A1').setFontColor('white');
-      
-      // Set up summary sections
-      dashboardSheet.getRange('A3').setValue('สรุปรายเดือน (Monthly Summary)');
-      dashboardSheet.getRange('A3').setFontWeight('bold');
-      
-      // Format dashboard
-      dashboardSheet.autoResizeColumns(1, 6);
-      
-      console.log('✅ Dashboard created successfully');
-    }
-    
-    return dashboardSheet;
-  } catch (error) {
-    console.error('❌ Error creating dashboard:', error);
-    return null;
-  }
-}
-
-/**
- * Get employee summary
- */
-function getEmployeeSummary() {
-  try {
-    const sheet = getOrCreateSheet();
-    const data = sheet.getDataRange().getValues();
-    
-    if (data.length <= 1) {
-      return createCorsJsonResponse([]);
-    }
-    
-    const employees = ['Ting', 'Bank', 'Tann'];
-    const summary = employees.map(employee => {
-      const employeeData = data.slice(1).filter(row => row[6] === employee);
-      const totalCommission = employeeData.reduce((sum, row) => sum + (parseFloat(row[11]) || 0), 0);
-      const totalEntries = employeeData.length;
-      
-      return {
-        name: employee,
-        totalEntries: totalEntries,
-        totalCommission: totalCommission,
-        averageCommission: totalEntries > 0 ? totalCommission / totalEntries : 0
-      };
-    });
-    
-    return createCorsJsonResponse(summary);
-    
-  } catch (error) {
-    console.error('❌ Error getting employee summary:', error);
-    return createCorsResponse(false, 'Failed to get employee summary: ' + error.message);
-  }
 }
 
 /**
@@ -747,7 +705,10 @@ function checkDeploymentSettings() {
       triggers: ScriptApp.getProjectTriggers().length,
       spreadsheetInfo: getSpreadsheetInfo(),
       timestamp: new Date().toISOString(),
-      deploymentUrl: ScriptApp.getService().getUrl()
+      deploymentUrl: getDeploymentUrl(),
+      hasDoGet: typeof doGet === 'function',
+      hasDoPost: typeof doPost === 'function',
+      hasDoOptions: typeof doOptions === 'function'
     };
     
     console.log('🔍 Deployment info:', JSON.stringify(info, null, 2));
@@ -760,11 +721,26 @@ function checkDeploymentSettings() {
 }
 
 /**
+ * Test CORS functionality
+ */
+function testCors() {
+  console.log('🧪 Testing CORS functionality...');
+  
+  const testResponse = createCorsResponse(true, 'CORS test successful', {
+    timestamp: new Date().toISOString(),
+    testData: 'This is a CORS test response'
+  });
+  
+  console.log('🧪 CORS test response:', testResponse.getContent());
+  return testResponse.getContent();
+}
+
+/**
  * Get current deployment URL
  */
 function getCurrentDeploymentUrl() {
   try {
-    const url = ScriptApp.getService().getUrl();
+    const url = getDeploymentUrl();
     console.log('🔗 Current deployment URL:', url);
     return url;
   } catch (error) {
