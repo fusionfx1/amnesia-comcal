@@ -1,6 +1,6 @@
 /**
  * Google Apps Script for AMNESIA Staff Commission 2025 (FINAL FIXED VERSION)
- * This version includes comprehensive CORS handling and deployment fixes
+ * This version removes unsupported setHeaders() method
  */
 
 // Configuration
@@ -25,24 +25,7 @@ const HEADERS = [
 let SPREADSHEET_ID = null;
 
 /**
- * Handle OPTIONS requests for CORS preflight - CRITICAL FOR WEB APPS
- */
-function doOptions(e) {
-  console.log('📋 Handling OPTIONS request for CORS preflight');
-  
-  return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-      'Access-Control-Max-Age': '86400'
-    });
-}
-
-/**
- * Handle POST requests (saving data) - ENHANCED WITH BETTER CORS
+ * Handle POST requests (saving data) - FIXED VERSION WITHOUT setHeaders()
  */
 function doPost(e) {
   try {
@@ -83,7 +66,7 @@ function doPost(e) {
 }
 
 /**
- * Handle GET requests (loading data) - ENHANCED WITH BETTER CORS
+ * Handle GET requests (loading data) - FIXED VERSION WITHOUT setHeaders()
  */
 function doGet(e) {
   try {
@@ -107,7 +90,7 @@ function doGet(e) {
     console.log('✅ Basic connectivity test - returning success response');
     return createCorsResponse(true, 'AMNESIA Commission API is working! 🎉', {
       timestamp: new Date().toISOString(),
-      version: '3.0',
+      version: '3.1',
       spreadsheetName: SPREADSHEET_NAME,
       deploymentUrl: getDeploymentUrl(),
       testMessage: 'Connection successful from Google Apps Script!'
@@ -237,7 +220,7 @@ function getOrCreateSheet() {
 }
 
 /**
- * Save commission data to Google Sheets (ENHANCED VERSION WITH BETTER CORS)
+ * Save commission data to Google Sheets (ENHANCED VERSION)
  */
 function saveCommissionData(entries) {
   try {
@@ -341,7 +324,7 @@ function saveCommissionData(entries) {
 }
 
 /**
- * Load commission data by month (ENHANCED VERSION WITH BETTER CORS)
+ * Load commission data by month (ENHANCED VERSION)
  */
 function loadCommissionData(month) {
   try {
@@ -391,7 +374,7 @@ function loadCommissionData(month) {
 }
 
 /**
- * Load all available months (ENHANCED VERSION WITH BETTER CORS)
+ * Load all available months (ENHANCED VERSION)
  */
 function loadAllMonths() {
   try {
@@ -449,7 +432,7 @@ function formatCurrencyColumns(sheet, startRow, numRows) {
 }
 
 /**
- * Create a CORS-enabled JSON response (ENHANCED VERSION)
+ * Create a CORS-enabled JSON response (FIXED VERSION - NO setHeaders)
  */
 function createCorsResponse(success, message, data = null) {
   const response = {
@@ -457,7 +440,7 @@ function createCorsResponse(success, message, data = null) {
     message: message,
     timestamp: new Date().toISOString(),
     server: 'Google Apps Script',
-    version: '3.0'
+    version: '3.1'
   };
   
   if (data !== null) {
@@ -466,34 +449,22 @@ function createCorsResponse(success, message, data = null) {
   
   console.log('📤 Sending CORS response:', JSON.stringify(response));
   
+  // FIXED: Use only setMimeType, remove setHeaders which is not supported
   return ContentService
     .createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-      'Access-Control-Max-Age': '86400',
-      'Cache-Control': 'no-cache'
-    });
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
- * Create a CORS-enabled JSON response for data
+ * Create a CORS-enabled JSON response for data (FIXED VERSION - NO setHeaders)
  */
 function createCorsJsonResponse(data) {
   console.log('📤 Sending CORS JSON data length:', Array.isArray(data) ? data.length : 'not array');
   
+  // FIXED: Use only setMimeType, remove setHeaders which is not supported
   return ContentService
     .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-      'Access-Control-Max-Age': '86400',
-      'Cache-Control': 'no-cache'
-    });
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
@@ -707,8 +678,7 @@ function checkDeploymentSettings() {
       timestamp: new Date().toISOString(),
       deploymentUrl: getDeploymentUrl(),
       hasDoGet: typeof doGet === 'function',
-      hasDoPost: typeof doPost === 'function',
-      hasDoOptions: typeof doOptions === 'function'
+      hasDoPost: typeof doPost === 'function'
     };
     
     console.log('🔍 Deployment info:', JSON.stringify(info, null, 2));
@@ -721,17 +691,17 @@ function checkDeploymentSettings() {
 }
 
 /**
- * Test CORS functionality
+ * Test basic functionality
  */
-function testCors() {
-  console.log('🧪 Testing CORS functionality...');
+function testBasicFunctionality() {
+  console.log('🧪 Testing basic functionality...');
   
-  const testResponse = createCorsResponse(true, 'CORS test successful', {
+  const testResponse = createCorsResponse(true, 'Basic functionality test successful', {
     timestamp: new Date().toISOString(),
-    testData: 'This is a CORS test response'
+    testData: 'This is a basic test response'
   });
   
-  console.log('🧪 CORS test response:', testResponse.getContent());
+  console.log('🧪 Basic test response:', testResponse.getContent());
   return testResponse.getContent();
 }
 
